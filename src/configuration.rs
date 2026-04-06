@@ -6,9 +6,12 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
-    pub kraken_api_key: Option<String>,
-    pub kraken_api_secret: Option<String>,
-    pub kraken_rest_base_url: String,
+    #[serde(alias = "kraken_api_key")]
+    pub api_key: Option<String>,
+    #[serde(alias = "kraken_api_secret")]
+    pub api_secret: Option<String>,
+    #[serde(alias = "kraken_rest_base_url")]
+    pub rest_base_url: String,
     pub ws_url: String,
     pub trade_pair: Option<String>,
     pub window_size: usize,
@@ -22,9 +25,9 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            kraken_api_key: None,
-            kraken_api_secret: None,
-            kraken_rest_base_url: "https://api.kraken.com".to_string(),
+            api_key: None,
+            api_secret: None,
+            rest_base_url: "https://api.kraken.com".to_string(),
             ws_url: "wss://ws.kraken.com/v2".to_string(),
             trade_pair: None,
             window_size: 20,
@@ -40,7 +43,7 @@ impl Default for Settings {
 pub fn load_settings() -> Result<Settings> {
     let defaults = Settings::default();
     let cfg = Config::builder()
-        .set_default("kraken_rest_base_url", defaults.kraken_rest_base_url)?
+        .set_default("rest_base_url", defaults.rest_base_url)?
         .set_default("ws_url", defaults.ws_url)?
         .set_default("window_size", defaults.window_size as i64)?
         .set_default("z_buy_threshold", defaults.z_buy_threshold.to_string())?

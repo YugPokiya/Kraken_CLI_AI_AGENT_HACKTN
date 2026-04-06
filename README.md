@@ -19,6 +19,7 @@ export KRAKEN_API_SECRET="YourPrivateKey"
 # export KRAKEN_DRY_RUN=false
 # export KRAKEN_DB_PATH=./sentinel_db
 # export KRAKEN_WINDOW_SIZE=20
+# export KRAKEN_REST_BASE_URL=https://api.kraken.com
 ```
 
 ## Run

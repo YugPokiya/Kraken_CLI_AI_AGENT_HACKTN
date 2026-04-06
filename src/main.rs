@@ -53,11 +53,12 @@ async fn main() -> Result<()> {
 
     let strat_state = Arc::clone(&market_state);
     let strat_settings = settings.clone();
+    let strat_executor = order_executor.clone();
     let strat_handle = tokio::spawn(async move {
         if let Err(e) = run_strategy_loop(
             strat_state,
             storage,
-            order_executor,
+            strat_executor,
             strat_settings,
             strat_shutdown,
         )
@@ -70,6 +71,7 @@ async fn main() -> Result<()> {
     tokio::signal::ctrl_c().await?;
     tracing::info!("Shutdown signal received, cancelling tasks");
     shutdown.cancel();
+    order_executor.cancel_all_open_orders().await?;
 
     let _ = tokio::join!(ws_handle, strat_handle);
     Ok(())
@@ -96,7 +98,7 @@ async fn run_strategy_loop(
                     (guard.pair.clone(), guard.prices.iter().copied().collect::<Vec<Decimal>>())
                 };
 
-                if let Some(ctx) = calculate_z_score(&prices) {
+                if let Some(ctx) = calculate_z_score(&prices, settings.window_size) {
                     let signal = signal_from_z_score(&ctx, settings.z_buy_threshold, settings.z_sell_threshold);
                     if signal != TradeSignal::Hold {
                         let balance = executor.get_account_balance().await?;

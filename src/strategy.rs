@@ -17,12 +17,13 @@ pub enum TradeSignal {
     Hold,
 }
 
-pub fn calculate_z_score(window: &[Decimal]) -> Option<SignalContext> {
-    if window.len() < 20 {
+pub fn calculate_z_score(window: &[Decimal], min_window: usize) -> Option<SignalContext> {
+    if window.len() < min_window || window.len() < 2 {
         return None;
     }
 
     let n = Decimal::from(window.len() as u64);
+    let n_minus_1 = Decimal::from((window.len() - 1) as u64);
     let sum: Decimal = window.iter().copied().sum();
     let mean = sum / n;
 
@@ -33,7 +34,7 @@ pub fn calculate_z_score(window: &[Decimal]) -> Option<SignalContext> {
             diff * diff
         })
         .sum::<Decimal>()
-        / n;
+        / n_minus_1;
 
     let variance_f = variance.to_f64()?;
     let std_dev_f = variance_f.sqrt();
@@ -76,10 +77,16 @@ mod tests {
     fn computes_buy_signal_on_large_negative_deviation() {
         let mut prices = vec![dec!(100); 19];
         prices.push(dec!(90));
-        let ctx = calculate_z_score(&prices).expect("zscore");
+        let ctx = calculate_z_score(&prices, 20).expect("zscore");
         assert_eq!(
             signal_from_z_score(&ctx, dec!(-2), dec!(2)),
             TradeSignal::Buy
         );
+    }
+
+    #[test]
+    fn returns_none_for_small_window() {
+        let prices = vec![dec!(100); 5];
+        assert!(calculate_z_score(&prices, 20).is_none());
     }
 }

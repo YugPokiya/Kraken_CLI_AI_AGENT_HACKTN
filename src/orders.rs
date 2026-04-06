@@ -38,12 +38,12 @@ impl OrderExecutor {
 
         let key = self
             .settings
-            .kraken_api_key
+            .api_key
             .clone()
             .context("KRAKEN_API_KEY missing")?;
         let secret = self
             .settings
-            .kraken_api_secret
+            .api_secret
             .clone()
             .context("KRAKEN_API_SECRET missing")?;
 
@@ -52,7 +52,7 @@ impl OrderExecutor {
             format!("nonce={nonce}&ordertype=market&type={side}&pair={pair}&volume={volume}");
         let path = "/0/private/AddOrder";
         let signature = kraken_signature(path, nonce, &post_data, &secret)?;
-        let url = format!("{}{}", self.settings.kraken_rest_base_url, path);
+        let url = format!("{}{}", self.settings.rest_base_url, path);
 
         self.client
             .post(url)
@@ -64,6 +64,15 @@ impl OrderExecutor {
             .await?
             .error_for_status()?;
 
+        Ok(())
+    }
+
+    pub async fn cancel_all_open_orders(&self) -> Result<()> {
+        if self.settings.dry_run {
+            tracing::info!("Dry-run mode: cancel_all_open_orders skipped");
+            return Ok(());
+        }
+        // Placeholder for Kraken CancelAll endpoint integration.
         Ok(())
     }
 }
