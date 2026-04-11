@@ -20,6 +20,10 @@ export KRAKEN_API_SECRET="YourPrivateKey"
 # export KRAKEN_DB_PATH=./sentinel_db
 # export KRAKEN_WINDOW_SIZE=20
 # export KRAKEN_REST_BASE_URL=https://api.kraken.com
+# export KRAKEN_STRATEGY=mean_reversion
+# export KRAKEN_ANALYSIS_PAIRS='["UNI/USD","HYPE/USD","XMR/USD","SOL/USD","ETH/USD"]'
+# export KRAKEN_RISK_AMOUNT_USD=10
+# export KRAKEN_REWARD_TO_RISK=2
 ```
 
 ## Run
@@ -29,6 +33,21 @@ RUST_LOG=info cargo run --release -- BTC/USD
 ```
 
 Only a pair symbol is required on the CLI. If omitted, Sentinel uses `BTC/USD`.
+
+Supported analysis pairs (initial set):
+
+- `UNI/USD`
+- `HYPE/USD`
+- `XMR/USD` (Monero)
+- `SOL/USD`
+- `ETH/USD`
+- `BTC/USD`
+
+Strategy selection is configurable through `KRAKEN_STRATEGY` with scaffolded options:
+
+- `mean_reversion` (implemented)
+- `breakout` (placeholder)
+- `momentum` (placeholder)
 
 ## Behavior
 
@@ -40,6 +59,9 @@ Only a pair symbol is required on the CLI. If omitted, Sentinel uses `BTC/USD`.
    - `Z >= 2.0` => SELL
 5. Applies risk cap: max notional per trade is 5% of account balance.
 6. Records each trade to sled (`trade:<timestamp_ms>`).
+7. Computes and logs trading zones for each signal:
+   - Stop Loss from configurable fixed risk budget (`KRAKEN_RISK_AMOUNT_USD`, default `10`).
+   - Take Profit from configurable reward:risk ratio (`KRAKEN_REWARD_TO_RISK`, default `2`).
 
 ## Notes
 
