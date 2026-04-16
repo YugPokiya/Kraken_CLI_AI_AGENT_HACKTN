@@ -46,3 +46,9 @@ Only a pair symbol is required on the CLI. If omitted, Sentinel uses `BTC/USD`.
 - By default `dry_run=true`, so no live orders are sent.
 - Live private REST order submission requires valid Kraken keys and base64 secret.
 - Use `CTRL+C` for graceful shutdown. Both ingest and strategy loops are cancelled cleanly.
+
+## Python Pivot Roadmap
+
+This repository now includes a documented Python-first architecture for a 5m/15m/30m statistical mean-reversion stack focused on on-chain OHLCV, liquidity-state tracking, event-driven RAG, and local model inference.
+
+See: [`docs/python_pivot_architecture.md`](docs/python_pivot_architecture.md).
