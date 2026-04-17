@@ -18,7 +18,7 @@ use configuration::load_settings;
 use orders::OrderExecutor;
 use state::{MarketState, SharedMarketState};
 use storage::{Storage, TradeRecord};
-use strategy::{TradeSignal, calculate_z_score, signal_from_z_score};
+use strategy::{TradeSignal, calculate_z_score, compute_trading_zones, signal_from_z_score};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,7 +29,25 @@ async fn main() -> Result<()> {
         .nth(1)
         .or(settings.trade_pair.clone())
         .unwrap_or_else(|| "BTC/USD".to_string());
+    let pair = configuration::normalize_pair_symbol(&pair);
     settings.trade_pair = Some(pair.clone());
+
+    if !configuration::is_supported_analysis_pair(&pair) {
+        anyhow::bail!(
+            "Unsupported pair '{}'. Supported analysis pairs: {:?}",
+            pair,
+            configuration::SUPPORTED_ANALYSIS_PAIRS
+        );
+    }
+
+    let strategy = configuration::parse_strategy(&settings.strategy)?;
+    tracing::info!(
+        ?strategy,
+        analysis_pairs=?settings.analysis_pairs,
+        risk_amount_usd=%settings.risk_amount_usd,
+        reward_to_risk=%settings.reward_to_risk,
+        "Trading configuration loaded"
+    );
 
     let market_state: SharedMarketState = Arc::new(RwLock::new(MarketState::new(
         pair.clone(),
@@ -112,6 +130,22 @@ async fn run_strategy_loop(
                         if volume <= Decimal::ZERO {
                             tracing::warn!("Signal ignored due to zero volume after risk checks");
                             continue;
+                        }
+
+                        if let Some(zones) = compute_trading_zones(
+                            signal,
+                            ctx.current_price,
+                            settings.risk_amount_usd,
+                            volume,
+                            settings.reward_to_risk,
+                        ) {
+                            tracing::info!(
+                                pair,
+                                signal=?signal,
+                                stop_loss=%zones.stop_loss,
+                                take_profit=%zones.take_profit,
+                                "Computed trading zones"
+                            );
                         }
 
                         let side = if signal == TradeSignal::Buy { "buy" } else { "sell" };

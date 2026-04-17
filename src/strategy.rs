@@ -1,6 +1,7 @@
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal_macros::dec;
+use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct SignalContext {
@@ -15,6 +16,64 @@ pub enum TradeSignal {
     Buy,
     Sell,
     Hold,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StrategyKind {
+    MeanReversion,
+    Breakout,
+    Momentum,
+}
+
+impl FromStr for StrategyKind {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let normalized = value.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "mean_reversion" | "mean-reversion" | "meanreversion" => Ok(Self::MeanReversion),
+            "breakout" => Ok(Self::Breakout),
+            "momentum" => Ok(Self::Momentum),
+            _ => Err(format!("unsupported strategy: {value}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TradingZones {
+    pub stop_loss: Decimal,
+    pub take_profit: Decimal,
+}
+
+pub fn compute_trading_zones(
+    signal: TradeSignal,
+    entry_price: Decimal,
+    risk_amount_usd: Decimal,
+    position_size: Decimal,
+    reward_to_risk: Decimal,
+) -> Option<TradingZones> {
+    if entry_price <= Decimal::ZERO
+        || risk_amount_usd <= Decimal::ZERO
+        || position_size <= Decimal::ZERO
+        || reward_to_risk <= Decimal::ZERO
+        || signal == TradeSignal::Hold
+    {
+        return None;
+    }
+
+    let risk_per_unit = risk_amount_usd / position_size;
+    let reward_per_unit = risk_per_unit * reward_to_risk;
+
+    let (stop_loss, take_profit) = match signal {
+        TradeSignal::Buy => (entry_price - risk_per_unit, entry_price + reward_per_unit),
+        TradeSignal::Sell => (entry_price + risk_per_unit, entry_price - reward_per_unit),
+        TradeSignal::Hold => return None,
+    };
+
+    Some(TradingZones {
+        stop_loss,
+        take_profit,
+    })
 }
 
 pub fn calculate_z_score(window: &[Decimal], min_window: usize) -> Option<SignalContext> {
@@ -88,5 +147,29 @@ mod tests {
     fn returns_none_for_small_window() {
         let prices = vec![dec!(100); 5];
         assert!(calculate_z_score(&prices, 20).is_none());
+    }
+
+    #[test]
+    fn parses_supported_strategy_kinds() {
+        assert_eq!(
+            "mean_reversion".parse::<StrategyKind>().unwrap(),
+            StrategyKind::MeanReversion
+        );
+        assert_eq!(
+            "breakout".parse::<StrategyKind>().unwrap(),
+            StrategyKind::Breakout
+        );
+        assert_eq!(
+            "momentum".parse::<StrategyKind>().unwrap(),
+            StrategyKind::Momentum
+        );
+    }
+
+    #[test]
+    fn computes_trading_zones_for_buy_signal() {
+        let zones =
+            compute_trading_zones(TradeSignal::Buy, dec!(100), dec!(10), dec!(2), dec!(2)).unwrap();
+        assert_eq!(zones.stop_loss, dec!(95));
+        assert_eq!(zones.take_profit, dec!(110));
     }
 }
